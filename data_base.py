@@ -1,54 +1,109 @@
-# Import the logging module to track actions for debugging or monitoring
+# Import logging for logging debug/info/error messages
 import logging
 
-# Import database functions for reservation operations
-from data_base import create_reservation, find_reservation_by_phone, delete_reservation
+# Import MongoClient to connect to MongoDB
+from pymongo import MongoClient
 
-# Create a logger specific to the restaurant API module
-logger = logging.getLogger("restaurant-api")
+# Import error class to handle MongoDB exceptions
+from pymongo.errors import PyMongoError
 
-# Define a class that acts as an interface between the assistant and the database
-class RestaurantAPI:
-    def __init__(self):
-        # No initialization needed for now
-        pass
+# Used to load environment variables from a .env file
+import os
+from dotenv import load_dotenv
 
-    # Create a new reservation in the database
-    async def create_reservation(self, name: str, phone: str, date: str, time: str, guests: int):
-        # Log the reservation creation request
-        logger.info(f"Creating reservation for {name} on {date} at {time} for {guests} guests")
-        
-        # Call the database function to store the reservation
-        create_reservation(name, phone, date, time, guests)
-        
-        # Return a confirmation message
-        return f"Perfect! Reservation made for {name} on {date} at {time} for {guests} guests."
+# Load environment variables (like MONGO_URI) from the .env file
+load_dotenv()
 
-    # Look up a reservation using the guest's phone number
-    async def check_reservation(self, phone: str):
-        # Log the lookup attempt
-        logger.info(f"Checking reservation for phone number {phone}")
-        
-        # Search for reservation in the database
-        result = find_reservation_by_phone(phone)
-        
-        # Return reservation details if found
-        if result:
-            return (
-                f"Reservation found: {result['name']} on {result['date']} at {result['time']} "
-                f"for {result['guests']} guests."
-            )
+# Load the MongoDB URI string from the environment
+MONGO_URI = os.getenv("MONGO_URI")
+
+# Setup a logger for the database module
+logger = logging.getLogger("data_base")
+logging.basicConfig(level=logging.INFO)
+
+# ---------- MongoDB Connection ----------
+
+try:
+    # Create a client to connect to MongoDB Atlas using the URI
+    client = MongoClient(MONGO_URI)
+
+    # Select the database (it will be created if it doesn't exist)
+    db = client["restaurant_db"]
+
+    # Select the collection (like a table in SQL). This will store reservations.
+    reservations = db["reservations"]
+
+    logger.info("Database initialized successfully")
+
+except PyMongoError as e:
+    # Handle errors like wrong URI, network issue, auth failure
+    logger.error(f"Error connecting to MongoDB: {e}")
+    raise  # Stop the program if DB connection fails
+
+# ---------- Function: Create Reservation ----------
+
+def create_reservation(name: str, phone: str, date: str, time: str, guests: int) -> str:
+    """
+    Inserts a reservation document into the MongoDB 'reservations' collection.
+    """
+    try:
+        # Create a dictionary (document) with all reservation details
+        reservation = {
+            "name": name,
+            "phone": phone,
+            "date": date,
+            "time": time,
+            "guests": guests
+        }
+
+        # Insert the reservation document into the collection
+        reservations.insert_one(reservation)
+
+        logger.info(f"Reservation created for {name}")
+
+        # Return a user-friendly confirmation message
+        return f"Thanks {name}, your reservation for {guests} guests on {date} at {time} has been confirmed."
+
+    except PyMongoError as e:
+        # Handle insertion errors
+        logger.error(f"Error creating reservation: {e}")
+        return "Sorry, something went wrong while creating your reservation."
+
+# ---------- Function: Find Reservation By Phone ----------
+
+def find_reservation_by_phone(phone: str):
+    """
+    Retrieves a reservation document from the collection using the phone number.
+    Returns None if not found or if there's an error.
+    """
+    try:
+        # Search for the first matching document with the given phone number
+        return reservations.find_one({"phone": phone})
+    except PyMongoError as e:
+        # Log and handle any MongoDB error
+        logger.error(f"Error finding reservation: {e}")
+        return None
+
+# ---------- Function: Delete Reservation ----------
+
+def delete_reservation(phone: str) -> str:
+    """
+    Deletes a reservation document based on the phone number.
+    Returns a confirmation or error message.
+    """
+    try:
+        # Try to delete the first document with the given phone number
+        result = reservations.delete_one({"phone": phone})
+
+        # Check if any document was actually deleted
+        if result.deleted_count > 0:
+            logger.info(f"Reservation deleted for phone: {phone}")
+            return "Your reservation has been successfully canceled."
         else:
-            # Inform user if no reservation is found
-            return "No reservation found for that phone number."
+            # No match found
+            return "No reservation found with that phone number."
 
-    # Cancel an existing reservation by phone number
-    async def cancel_reservation(self, phone: str):
-        # Log the cancellation attempt
-        logger.info(f"Canceling reservation for phone number {phone}")
-        
-        # Attempt to delete the reservation
-        success = delete_reservation(phone)
-        
-        # Return appropriate message based on result
-        return "Reservation cancelled." if success else "No reservation found to cancel."
+    except PyMongoError as e:
+        # Handle deletion errors
+        logger.error(f"Error deleting reservation: {e}")
+        return "Sorry, something went wrong while trying to delete your reservation."
