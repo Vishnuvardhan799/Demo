@@ -177,17 +177,18 @@ class RestaurantAgent(Agent):
             return "Sorry, I had trouble finding an answer to that."
 
 # Entry point for the agent application
-async def entrypoint(ctx: agents.JobContext):
-    stt = deepgram.STT()
-    llm = groq.LLM(model="llama3-8b-8192")
-    tts = cartesia.TTS() # Using Cartesia for the main agent's TTS, as Tavus handles the actual audio output
+stt = deepgram.STT()
+llm = groq.LLM(model="llama3-8b-8192")
+tts = cartesia.TTS()
 
+async def entrypoint(ctx: agents.JobContext):
+    # Using Cartesia for the main agent's TTS, as Tavus handles the actual audio output
     session = AgentSession(stt=stt, llm=llm, tts=tts)
     agent = RestaurantAgent()
 
     avatar = tavus.AvatarSession(
-        replica_id="r9fa0878977a",  # Your new Replica ID
-        persona_id="pe499923a759", # Your Persona ID
+        replica_id="r4c41453d2",  # Your new Replica ID
+        persona_id="p2fbd605", # Your Persona ID
     )
 
     # Connect to the room
@@ -221,10 +222,8 @@ async def entrypoint(ctx: agents.JobContext):
     # Process user message and generate an appropriate reply
     async def handle_user(msg):
         if agent.has_reservation():
-            await session.send_user_message(msg.content)
             await session.generate_reply()
         else:
-            await session.send_user_message(msg.content)
             await session.generate_reply(instructions=LOOKUP_RESERVATION_MESSAGE(msg.content))
 
 # Run the agent app using CLI
