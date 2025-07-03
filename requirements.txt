@@ -1,11 +1,13 @@
-livekit-agents
+livekit-agents[tavus]
 livekit-plugins-openai
 livekit-plugins-silero
-livekit-plugins-google
+livekit-plugins-deepgram
+livekit-plugins-cartesia
+livekit-plugins-groq
 livekit-plugins-noise-cancellation
 mem0ai
-duckduckgo-search
 langchain_community
 requests
 python-dotenv
 pymongo
+sentence-transformers
