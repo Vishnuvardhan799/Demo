@@ -10,7 +10,7 @@ from livekit import agents
 from livekit.agents import AgentSession, Agent, RoomInputOptions, RoomOutputOptions, WorkerOptions, cli, function_tool, RunContext
 
 # Import additional plugins (Google LLM + noise cancellation)
-from livekit.plugins import cartesia, deepgram, groq, noise_cancellation, tavus
+from livekit.plugins import cartesia, deepgram, google, noise_cancellation, tavus
 
 
 # Import prompt instructions and templates
@@ -21,7 +21,7 @@ from db_driver import DatabaseDriver
 from kb import get_kb_answer
 
 # Import required standard libraries
-import enum, logging, re
+import enum, logging, re, os
 import dateparser
 
 # Load environment variables
@@ -178,7 +178,7 @@ class RestaurantAgent(Agent):
 
 # Entry point for the agent application
 stt = deepgram.STT()
-llm = groq.LLM(model="llama3-8b-8192")
+llm = google.LLM()
 tts = cartesia.TTS()
 
 async def entrypoint(ctx: agents.JobContext):
