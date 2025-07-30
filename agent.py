@@ -1,4 +1,3 @@
-
 # Import future annotations for forward type references
 from __future__ import annotations
 
@@ -10,8 +9,7 @@ from livekit import agents
 from livekit.agents import AgentSession, Agent, RoomInputOptions, RoomOutputOptions, WorkerOptions, cli, function_tool, RunContext
 
 # Import additional plugins (Google LLM + noise cancellation)
-from livekit.plugins import cartesia, deepgram, google, noise_cancellation, tavus
-
+from livekit.plugins import cartesia, deepgram, google, noise_cancellation, tavus, silero
 
 # Import prompt instructions and templates
 from prompts import AGENT_INSTRUCTION, SESSION_INSTRUCTION, LOOKUP_RESERVATION_MESSAGE
@@ -26,7 +24,6 @@ import dateparser
 
 # Load environment variables
 load_dotenv()
-
 
 # Setup logger for user data
 logger = logging.getLogger("user-data")
@@ -183,7 +180,7 @@ tts = cartesia.TTS()
 
 async def entrypoint(ctx: agents.JobContext):
     # Using Cartesia for the main agent's TTS, as Tavus handles the actual audio output
-    session = AgentSession(stt=stt, llm=llm, tts=tts)
+    session = AgentSession(stt=stt, llm=llm, tts=tts, vad=silero.VAD)
     agent = RestaurantAgent()
 
     avatar = tavus.AvatarSession(
