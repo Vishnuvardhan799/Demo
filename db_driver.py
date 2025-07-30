@@ -40,7 +40,7 @@ try:
     db = client["restaurant"]
 
     # Access the 'reservations' collection within the 'restaurant' database
-    reservations_collection = db["reservations"]
+    reservations_collection = db["reservations"] # type: ignore
 
     # Log successful connection
     logger.info("MongoDB connection initialized successfully")

@@ -9,7 +9,7 @@ from livekit import agents
 from livekit.agents import AgentSession, Agent, RoomInputOptions, RoomOutputOptions, WorkerOptions, cli, function_tool, RunContext
 
 # Import additional plugins (Google LLM + noise cancellation)
-from livekit.plugins import cartesia, deepgram, google, noise_cancellation, tavus, silero
+from livekit.plugins import cartesia, deepgram, google, noise_cancellation
 
 # Import prompt instructions and templates
 from prompts import AGENT_INSTRUCTION, SESSION_INSTRUCTION, LOOKUP_RESERVATION_MESSAGE
@@ -19,7 +19,7 @@ from db_driver import DatabaseDriver
 from kb import get_kb_answer
 
 # Import required standard libraries
-import enum, logging, re, os
+import enum, logging, re
 import dateparser
 
 # Load environment variables
@@ -179,20 +179,21 @@ llm = google.LLM()
 tts = cartesia.TTS()
 
 async def entrypoint(ctx: agents.JobContext):
-    # Using Cartesia for the main agent's TTS, as Tavus handles the actual audio output
-    session = AgentSession(stt=stt, llm=llm, tts=tts, vad=silero.VAD)
+    # Using Cartesia for the main agent's TTS
+    session = AgentSession(stt=stt, llm=llm, tts=tts)
     agent = RestaurantAgent()
 
-    avatar = tavus.AvatarSession(
-        replica_id="r4c41453d2",  # Your new Replica ID
-        persona_id="p2fbd605", # Your Persona ID
-    )
+    # Commented out Tavus avatar session
+    # avatar = tavus.AvatarSession(
+    #     replica_id="r4c41453d2",  # Your new Replica ID
+    #     persona_id="p2fbd605", # Your Persona ID
+    # )
 
     # Connect to the room
     await ctx.connect()
 
-    # Start the avatar and wait for it to join
-    await avatar.start(session, room=ctx.room)
+    # Commented out Tavus avatar start
+    # await avatar.start(session, room=ctx.room)
 
     # Start the agent session with noise cancellation and disable audio output
     await session.start(
