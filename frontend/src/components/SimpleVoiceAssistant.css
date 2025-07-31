@@ -1,0 +1,77 @@
+.voice-assistant-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 2rem;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+  border-radius: 16px;
+}
+
+.visualizer-container {
+  width: 100%;
+  max-width: 600px;
+  height: 200px;
+  margin-bottom: 2rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 1rem;
+}
+
+.control-section {
+  width: 100%;
+  max-width: 600px;
+  margin-top: 1rem;
+}
+
+.conversation {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 1.5rem;
+  max-height: 300px;
+  overflow-y: auto;
+  width: 100%;
+  backdrop-filter: blur(10px);
+}
+
+.conversation::-webkit-scrollbar {
+  width: 6px;
+}
+
+.conversation::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.conversation::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.5);
+  border-radius: 3px;
+}
+
+.message {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+}
+
+.message-agent {
+  background: rgba(99, 102, 241, 0.2);
+  border-left: 3px solid #6366f1;
+  color: #e0e7ff;
+}
+
+.message-user {
+  background: rgba(6, 182, 212, 0.2);
+  border-left: 3px solid #06b6d4;
+  color: #cffafe;
+  margin-left: 2rem;
+}
+
+.message-text {
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
