@@ -1,0 +1,16 @@
+livekit-agents[tavus]
+livekit-plugins-google
+livekit-plugins-deepgram
+livekit-plugins-cartesia
+livekit-plugins-silero
+livekit-plugins-noise-cancellation
+mem0ai
+langchain_community
+requests
+python-dotenv
+pymongo
+sentence-transformers
+dateparser
+Flask[async]
+livekit
+flask-cors
