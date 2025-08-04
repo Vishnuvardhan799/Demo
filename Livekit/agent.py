@@ -9,7 +9,7 @@ from livekit import agents
 from livekit.agents import AgentSession, Agent, RoomInputOptions, RoomOutputOptions, WorkerOptions, cli, function_tool, RunContext
 
 # Import additional plugins (Google LLM + noise cancellation)
-from livekit.plugins import cartesia, deepgram, google, noise_cancellation
+from livekit.plugins import cartesia, deepgram, google, noise_cancellation, tavus
 
 # Import prompt instructions and templates
 from prompts import AGENT_INSTRUCTION, SESSION_INSTRUCTION, LOOKUP_RESERVATION_MESSAGE
@@ -19,7 +19,7 @@ from db_driver import DatabaseDriver
 from kb import get_kb_answer
 
 # Import required standard libraries
-import enum, logging, re
+import enum, os, logging, re, json
 import dateparser
 
 # Load environment variables
@@ -173,57 +173,130 @@ class RestaurantAgent(Agent):
             logger.error("Error getting KB answer: %s", e)
             return "Sorry, I had trouble finding an answer to that."
 
+from livekit.rtc.participant import PublishTranscriptionError
+
+
 # Entry point for the agent application
 stt = deepgram.STT()
 llm = google.LLM()
-tts = cartesia.TTS()
+tts = deepgram.TTS()
 
 async def entrypoint(ctx: agents.JobContext):
-    # Using Cartesia for the main agent's TTS
-    session = AgentSession(stt=stt, llm=llm, tts=tts)
-    agent = RestaurantAgent()
-
-    # Commented out Tavus avatar session
-    # avatar = tavus.AvatarSession(
-    #     replica_id="r4c41453d2",  # Your new Replica ID
-    #     persona_id="p2fbd605", # Your Persona ID
-    # )
+    """
+    This is the entrypoint for the agent. It is called when a new job is created.
+    """
+    # Initialize logging
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
     # Connect to the room
     await ctx.connect()
+    logging.info(f"Agent connected to room: {ctx.room.name}")
 
-    # Commented out Tavus avatar start
-    # await avatar.start(session, room=ctx.room)
+    # Safely parse room metadata to determine the call type
+    call_type = "Voice Only"
+    try:
+        if ctx.room.metadata:
+            metadata = json.loads(ctx.room.metadata)
+            call_type = metadata.get("call_type", "Voice Only")
+            logging.info(f"Call type determined from metadata: {call_type}")
+        else:
+            logging.warning("No room metadata found, defaulting to Voice Only.")
+    except json.JSONDecodeError:
+        logging.error("Failed to parse room metadata, defaulting to Voice Only.")
 
-    # Start the agent session with noise cancellation
-    await session.start(
-        room=ctx.room,
-        agent=agent,
-        room_input_options=RoomInputOptions(
-            noise_cancellation=noise_cancellation.BVC()
-        ),
-        room_output_options=RoomOutputOptions(
-            audio_enabled=True,
-        ),
-    )
+    # Initialize the agent session
+    session = AgentSession(stt=stt, llm=llm, tts=tts)
+    agent = RestaurantAgent()
 
-    # Generate an initial reply based on session instructions
+    # Determine how to start the session based on the call type
+    if call_type == "Voice + Avatar":
+        logging.info("Voice + Avatar call detected, attempting to initialize Tavus.")
+        tavus_api_key = os.getenv("TAVUS_API_KEY")
+        if tavus_api_key:
+            try:
+                avatar = tavus.AvatarSession(
+                    api_key=tavus_api_key,
+                    replica_id="r6ca16dbe104",
+                    persona_id="pa5f2854bea3",
+                )
+                # Start the session with audio disabled since Tavus will handle it
+                await session.start(
+                    room=ctx.room,
+                    agent=agent,
+                    room_input_options=RoomInputOptions(
+                        noise_cancellation=noise_cancellation.BVC()
+                    ),
+                    room_output_options=RoomOutputOptions(
+                        audio_enabled=False
+                    ),
+                )
+                # Start the avatar, which takes over video and audio publishing
+                await avatar.start(session, room=ctx.room)
+                logging.info("Tavus AvatarSession started successfully.")
+            except Exception as e:
+                logging.error(f"Failed to initialize Tavus, falling back to voice-only. Error: {e}")
+                # If Tavus fails, restart the session with audio enabled
+                await session.start(
+                    room=ctx.room,
+                    agent=agent,
+                    room_input_options=RoomInputOptions(
+                        noise_cancellation=noise_cancellation.BVC()
+                    ),
+                    room_output_options=RoomOutputOptions(
+                        audio_enabled=True
+                    ),
+                )
+        else:
+            # Fallback for avatar call if Tavus API key is missing
+            logging.warning("TAVUS_API_KEY not set. Starting a voice-only session for the avatar call.")
+            await session.start(
+                room=ctx.room,
+                agent=agent,
+                room_input_options=RoomInputOptions(
+                    noise_cancellation=noise_cancellation.BVC()
+                ),
+                room_output_options=RoomOutputOptions(
+                    audio_enabled=True
+                ),
+            )
+    else:
+        # Standard voice call
+        logging.info("Voice-only call detected, starting a regular agent session.")
+        await session.start(
+            room=ctx.room,
+            agent=agent,
+            room_input_options=RoomInputOptions(
+                noise_cancellation=noise_cancellation.BVC()
+            ),
+            room_output_options=RoomOutputOptions(
+                audio_enabled=True
+            ),
+        )
+
+    # Generate the initial greeting
     await session.generate_reply(instructions=SESSION_INSTRUCTION)
 
-    # Handle incoming user messages
+    # Define the user message handler
     @session.on("user_message")
     def on_user(msg):
         import asyncio
-        # Schedule the user message handler asynchronously
         asyncio.create_task(handle_user(msg))
 
-    # Process user message and generate an appropriate reply
     async def handle_user(msg):
-        if agent.has_reservation():
-            await session.generate_reply()
-        else:
-            await session.generate_reply(instructions=LOOKUP_RESERVATION_MESSAGE(msg.content))
+        try:
+            if agent.has_reservation():
+                await session.generate_reply()
+            else:
+                await session.generate_reply(instructions=LOOKUP_RESERVATION_MESSAGE(msg.content))
+        except (PublishTranscriptionError, ConnectionError) as e:
+            logging.warning(f"Connection lost while generating reply: {e}")
+            await session.stop()
+        except Exception as e:
+            logging.error(f"An unexpected error occurred in handle_user: {e}", exc_info=True)
+            await session.stop()
 
-# Run the agent app using CLI
 if __name__ == "__main__":
-    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+    cli.run_app(WorkerOptions(
+        entrypoint_fnc=entrypoint,
+        agent_name="restaurant-video-agent"  # This must match the dispatch name
+    ))

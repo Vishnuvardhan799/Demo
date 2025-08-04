@@ -4,9 +4,13 @@ import LiveKitModal from "./components/LiveKitModal";
 
 function App() {
   const [showSupport, setShowSupport] = useState(false);
+  const [callType, setCallType] = useState(null); // 'Voice Only' or 'Voice + Avatar'
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  const handleSupportClick = () => {
+  const handleOptionClick = (type) => {
+    setCallType(type);
     setShowSupport(true);
+    setDropdownOpen(false);
   };
 
   return (
@@ -64,11 +68,27 @@ function App() {
 
           {/* Primary CTA - Book Now Button */}
           <div className="cta-section">
-            <button className="book-now-btn" onClick={handleSupportClick}>
-              <div className="btn-icon">🎤</div>
-              <span className="btn-text">Book Now with Voice</span>
-              <div className="btn-pulse"></div>
-            </button>
+            <div className="dropdown-container">
+              <button
+                className="book-now-btn"
+                onClick={() => setDropdownOpen((prev) => !prev)}
+              >
+                <div className="btn-icon">🎤</div>
+                <span className="btn-text">Book Now</span>
+                <span className="dropdown-arrow">{dropdownOpen ? "▲" : "▼"}</span>
+                <div className="btn-pulse"></div>
+              </button>
+              {dropdownOpen && (
+                <div className="dropdown-menu">
+                  <button onClick={() => handleOptionClick("Voice Only")}>
+                    Voice Only
+                  </button>
+                  <button onClick={() => handleOptionClick("Voice + Avatar")}>
+                    Voice + Avatar
+                  </button>
+                </div>
+              )}
+            </div>
 
             <p className="cta-subtitle">
               Available 24/7 • Instant Confirmation • Natural Language
@@ -128,7 +148,9 @@ function App() {
       </section>
 
       {/* Modal */}
-      {showSupport && <LiveKitModal setShowSupport={setShowSupport} />}
+      {showSupport && (
+        <LiveKitModal setShowSupport={setShowSupport} callType={callType} />
+      )}
     </div>
   );
 }

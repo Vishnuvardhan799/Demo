@@ -168,4 +168,4 @@ temp/
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
+*.sw?Livekit/.env
